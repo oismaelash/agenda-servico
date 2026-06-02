@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Empresa {
+  id                   Int       @id @default(autoincrement())
+  slug                 String    @unique
+  nome                 String
+  logoUrl              String?   @map("logo_url")
+  /// WhatsApp do dono/barbearia (só dígitos, com DDI 55) para alertas de agenda
+  whatsappNotificacoes String?   @map("whatsapp_notificacoes")
+  unidades             Unidade[]
+
+  @@map("empresas")
+}
+
+model Unidade {
+  id           Int           @id @default(autoincrement())
+  empresaId    Int           @map("empresa_id")
+  nome         String
+  empresa      Empresa       @relation(fields: [empresaId], references: [id])
+  servicos     Servico[]
+  funcionarios Funcionario[]
+
+  @@map("unidades")
+}
+
+model Servico {
+  id          Int           @id @default(autoincrement())
+  unidadeId   Int           @map("unidade_id")
+  nome        String
+  preco       Float
+  duracaoMin  Int?          @map("duracao_min")
+  unidade     Unidade       @relation(fields: [unidadeId], references: [id])
+  agendamentos Agendamento[]
+
+  @@map("servicos")
+}
+
+model Funcionario {
+  id           Int           @id @default(autoincrement())
+  unidadeId    Int           @map("unidade_id")
+  nome         String
+  fotoUrl      String?       @map("foto_url")
+  unidade      Unidade       @relation(fields: [unidadeId], references: [id])
+  agendamentos Agendamento[]
+  disponibilidades Disponibilidade[]
+
+  @@map("funcionarios")
+}
+
+model Disponibilidade {
+  id             Int         @id @default(autoincrement())
+  funcionarioId  Int         @map("funcionario_id")
+  diaSemana      Int         @map("dia_semana")
+  horaInicio     String      @map("hora_inicio")
+  horaFim        String      @map("hora_fim")
+  funcionario    Funcionario @relation(fields: [funcionarioId], references: [id])
+
+  @@map("disponibilidades")
+}
+
+model Agendamento {
+  id                           Int       @id @default(autoincrement())
+  servicoId                    Int       @map("servico_id")
+  funcionarioId                Int       @map("funcionario_id")
+  clienteId                    Int?      @map("cliente_id")
+  data                         String
+  hora                         String
+  nomeCliente                  String    @map("nome_cliente")
+  telefone                     String
+  status                       String    @default("confirmado")
+  /// Preenchido ao cancelar; usado para sumir do histórico após o período de graça
+  canceladoAt                  DateTime? @map("cancelado_at")
+  createdAt                    DateTime  @default(now()) @map("created_at")
+  confirmacaoWhatsappEnviadaAt DateTime? @map("confirmacao_whatsapp_enviada_at")
+  lembrete1hEnviadoAt          DateTime? @map("lembrete_1h_enviado_at")
+  lembrete30mEnviadoAt         DateTime? @map("lembrete_30m_enviado_at")
+  servico                      Servico      @relation(fields: [servicoId], references: [id])
+  funcionario                  Funcionario  @relation(fields: [funcionarioId], references: [id])
+  cliente                      Cliente?     @relation(fields: [clienteId], references: [id])
+
+  @@map("agendamentos")
+}
+
+model Cliente {
+  id          Int           @id @default(autoincrement())
+  nome        String
+  telefone    String        @unique
+  senhaHash   String        @map("senha_hash")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  agendamentos Agendamento[]
+
+  @@map("clientes")
+}
